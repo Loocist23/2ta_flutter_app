@@ -141,6 +141,7 @@ class AuthController extends ChangeNotifier {
         await _storage.clearAllAuthTokens();
         _authToken = null;
         _user = null;
+        print('[AUTH] Token expiré ou invalide: $e');
       }
     }
 
@@ -507,6 +508,12 @@ class AuthController extends ChangeNotifier {
       _apiService!.clearAuthToken();
     }
     _setUser(null);
+  }
+
+  /// Méthode pour gérer la déconnexion automatique en cas de token expiré
+  Future<void> handleTokenExpired() async {
+    print('[AUTH] Déconnexion automatique due à un token expiré');
+    await signOut();
   }
 
   Future<void> deleteAccount() async {

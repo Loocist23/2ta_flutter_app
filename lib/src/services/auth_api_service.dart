@@ -123,7 +123,9 @@ class AuthApiService {
       return response.data as Map<String, dynamic>;
     } on DioException catch (e) {
       if (e.response?.statusCode == 401) {
-        throw Exception('Non autorisé. Veuillez vous reconnecter.');
+        // Token expiré - déclencher la déconnexion automatique
+        _apiService.clearAuthToken();
+        throw Exception('Votre session a expiré. Veuillez vous reconnecter.');
       }
       _handleAuthError(e);
       rethrow;

@@ -25,7 +25,7 @@ class MyApp extends StatelessWidget {
         debugShowCheckedModeBanner: false,
         theme: buildAppTheme(),
         scaffoldMessengerKey: AppSnackbar.messengerKey,
-        home: const AuthGate(),
+        home: const TokenExpiredHandler(),
       ),
     );
   }
@@ -46,6 +46,23 @@ class AuthGate extends StatelessWidget {
         }
         return const MainShell();
       },
+    );
+  }
+}
+
+class TokenExpiredHandler extends StatelessWidget {
+  const TokenExpiredHandler({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Consumer<AuthController>(
+      builder: (context, auth, child) {
+        if (auth.user == null) {
+          return const LoginScreen();
+        }
+        return child!;
+      },
+      child: const MainShell(),
     );
   }
 }

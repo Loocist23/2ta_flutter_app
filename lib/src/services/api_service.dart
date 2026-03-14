@@ -28,7 +28,12 @@ class ApiService {
         }
         return handler.next(options);
       },
-      onError: (DioException e, handler) {
+      onError: (DioException e, handler) async {
+        if (e.response?.statusCode == 401) {
+          print('[API] Token expiré - déconnexion automatique');
+          // Effacer le token localement
+          await clearAuthToken();
+        }
         _handleDioError(e);
         return handler.next(e);
       },
