@@ -26,6 +26,7 @@ class AppColors {
   // Semantic colors
   static const Color danger = Color(0xFFDC3545);
   static const Color dangerLight = Color(0xFFF8D7DA);
+  static const Color error = Color(0xFFDC3545);
 
   // Background colors
   static const Color background = white;

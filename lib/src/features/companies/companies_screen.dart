@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 import '../../constants/app_colors.dart';
-import '../../data/companies.dart';
 import '../../models/company.dart';
+import '../../services/data_service.dart';
 import 'company_details_screen.dart';
 
 class CompaniesScreen extends StatelessWidget {
@@ -10,14 +11,25 @@ class CompaniesScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final dataService = context.watch<DataService>();
+    final companies = dataService.companies;
+    final loading = dataService.loadingCompanies;
+    final error = dataService.companiesError;
+    
     return Scaffold(
       appBar: AppBar(title: const Text('Entreprises partenaires')),
-      body: ListView.builder(
-        padding: const EdgeInsets.all(20),
-        itemCount: companies.length,
-        itemBuilder: (context, index) {
-          final company = companies[index];
-          return Padding(
+      body: loading
+          ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
+          : error != null
+              ? Center(child: Text('Error: ${error!}', style: TextStyle(color: AppColors.error)))
+              : companies.isEmpty
+                  ? const Center(child: Text('No companies available'))
+                  : ListView.builder(
+                      padding: const EdgeInsets.all(20),
+                      itemCount: companies.length,
+                      itemBuilder: (context, index) {
+                        final company = companies[index];
+                        return Padding(
             padding: const EdgeInsets.only(bottom: 16),
             child: _CompanyCard(
               company: company,

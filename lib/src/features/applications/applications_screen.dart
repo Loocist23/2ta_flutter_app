@@ -39,6 +39,9 @@ class ApplicationsScreen extends StatelessWidget {
       case ApplicationStatus.interview:
         return ApplicationStatus.offer;
       case ApplicationStatus.offer:
+      case ApplicationStatus.rejected:
+        return status;
+      case ApplicationStatus.offer:
         return ApplicationStatus.offer;
     }
   }
@@ -328,6 +331,7 @@ class ApplicationsScreen extends StatelessWidget {
           Color(0xFF2F9D6B),
         );
       case ApplicationStatus.sent:
+      case ApplicationStatus.rejected:
         return const _StatusColors(
           Color(0xFFF0F2F7),
           Color(0xFF4B5563),

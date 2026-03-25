@@ -35,7 +35,17 @@ class EntitiesApiService {
       };
 
       final response = await _apiService.get('/offers', queryParameters: queryParameters);
-      return response.data as Map<String, dynamic>;
+      
+      // Extract the hydra:member array and total count
+      final data = response.data as Map<String, dynamic>;
+      final offers = data['hydra:member'] ?? [];
+      final totalItems = data['hydra:totalItems'] ?? 0;
+      
+      return {
+        'offers': offers,
+        'totalItems': totalItems,
+        'pagination': data['hydra:view'] ?? {},
+      };
     } on DioException catch (e) {
       _handleApiError(e);
       rethrow;
@@ -115,11 +125,26 @@ class EntitiesApiService {
       };
 
       final response = await _apiService.get('/applications', queryParameters: queryParameters);
-      return response.data as Map<String, dynamic>;
+      
+      // Extract the hydra:member array and total count
+      final data = response.data as Map<String, dynamic>;
+      final applications = data['hydra:member'] ?? [];
+      final totalItems = data['hydra:totalItems'] ?? 0;
+      
+      return {
+        'applications': applications,
+        'totalItems': totalItems,
+        'pagination': data['hydra:view'] ?? {},
+      };
     } on DioException catch (e) {
       _handleApiError(e);
       rethrow;
     }
+  }
+
+  /// Get applications for current user
+  Future<Map<String, dynamic>> getUserApplications(String userId) async {
+    return getApplications(studentId: userId, itemsPerPage: 100);
   }
 
   /// Get a specific application by ID
@@ -177,7 +202,17 @@ class EntitiesApiService {
       };
 
       final response = await _apiService.get('/companies', queryParameters: queryParameters);
-      return response.data as Map<String, dynamic>;
+      
+      // Extract the hydra:member array and total count
+      final data = response.data as Map<String, dynamic>;
+      final companies = data['hydra:member'] ?? [];
+      final totalItems = data['hydra:totalItems'] ?? 0;
+      
+      return {
+        'companies': companies,
+        'totalItems': totalItems,
+        'pagination': data['hydra:view'] ?? {},
+      };
     } on DioException catch (e) {
       _handleApiError(e);
       rethrow;

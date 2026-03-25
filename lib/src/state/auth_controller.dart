@@ -8,6 +8,7 @@ import '../models/user.dart';
 import '../services/local_storage.dart';
 import '../services/api_service.dart';
 import '../services/auth_api_service.dart';
+import '../services/entities_api_service.dart';
 
 enum AuthProvider { google, apple, email }
 
@@ -96,9 +97,15 @@ class AuthController extends ChangeNotifier {
     return _authApiService!;
   }
 
+  EntitiesApiService _getEntitiesApiService() {
+    _entitiesApiService ??= EntitiesApiService(_getApiService());
+    return _entitiesApiService!;
+  }
+
   final LocalStorage _storage;
   ApiService? _apiService;
   AuthApiService? _authApiService;
+  EntitiesApiService? _entitiesApiService;
   AppUser? _user;
   bool _hydrated = false;
   bool _loading = false;
@@ -125,13 +132,7 @@ class AuthController extends ChangeNotifier {
         final userData = await _getAuthApiService().getCurrentUser();
         
         // Créer l'utilisateur local à partir des données API
-        final newUser = createDefaultUser(
-          id: userData['id'] ?? 'restored-${DateTime.now().millisecondsSinceEpoch}',
-          email: userData['email'] ?? '',
-          name: '${userData['firstName'] ?? ''} ${userData['lastName'] ?? ''}',
-          avatarInitials: extractInitials('${userData['firstName'] ?? ''} ${userData['lastName'] ?? ''}'),
-          hasPassword: userData['isPasswordSet'] ?? false,
-        );
+        final newUser = await _createUserFromApiData(userData);
         
         _user = newUser;
         _activeProvider = AuthProvider.email; // Par défaut, pourrait être détecté
@@ -219,14 +220,8 @@ class AuthController extends ChangeNotifier {
       // Récupérer les informations utilisateur
       final userData = await _getAuthApiService().getCurrentUser();
       
-      // Créer l'utilisateur local
-      final newUser = createDefaultUser(
-        id: userData['id'] ?? 'google-${DateTime.now().millisecondsSinceEpoch}',
-        email: userData['email'] ?? googleUser.email,
-        name: '${userData['firstName'] ?? googleUser.firstName} ${userData['lastName'] ?? googleUser.lastName}',
-        avatarInitials: extractInitials('${userData['firstName'] ?? googleUser.firstName} ${userData['lastName'] ?? googleUser.lastName}'),
-        hasPassword: userData['isPasswordSet'] ?? false,
-      );
+      // Créer l'utilisateur local avec les données réelles
+      final newUser = await _createUserFromApiData(userData);
       
       _setUser(newUser, provider: AuthProvider.google);
       
@@ -274,14 +269,8 @@ class AuthController extends ChangeNotifier {
       // Récupérer les informations utilisateur
       final userData = await _getAuthApiService().getCurrentUser();
       
-      // Créer l'utilisateur local
-      final newUser = createDefaultUser(
-        id: userData['id'] ?? 'apple-${DateTime.now().millisecondsSinceEpoch}',
-        email: userData['email'] ?? appleUser.email,
-        name: '${userData['firstName'] ?? appleUser.firstName} ${userData['lastName'] ?? appleUser.lastName}',
-        avatarInitials: extractInitials('${userData['firstName'] ?? appleUser.firstName} ${userData['lastName'] ?? appleUser.lastName}'),
-        hasPassword: userData['isPasswordSet'] ?? false,
-      );
+      // Créer l'utilisateur local avec les données réelles
+      final newUser = await _createUserFromApiData(userData);
       
       _setUser(newUser, provider: AuthProvider.apple);
       
@@ -338,27 +327,8 @@ class AuthController extends ChangeNotifier {
       // Récupérer les informations utilisateur
       final userData = await _getAuthApiService().getCurrentUser();
       
-      // Créer l'utilisateur local
-      final generatedName = (fullName?.trim().isNotEmpty ?? false)
-          ? fullName!.trim()
-          : '${userData['firstName'] ?? normalizedEmail.split('@').first}';
-      
-      final normalizedName = generatedName
-          .split(' ')
-          .where((segment) => segment.isNotEmpty)
-          .map((segment) =>
-              segment[0].toUpperCase() + segment.substring(1).toLowerCase())
-          .join(' ');
-
-      final newUser = createDefaultUser(
-        id: userData['id'] ?? 'email-${DateTime.now().millisecondsSinceEpoch}',
-        email: userData['email'] ?? normalizedEmail,
-        name: normalizedName.isEmpty ? 'Utilisateur 2TA' : normalizedName,
-        avatarInitials: extractInitials(
-          normalizedName.isEmpty ? (userData['email'] ?? normalizedEmail) : normalizedName,
-        ),
-        hasPassword: userData['isPasswordSet'] ?? true,
-      );
+      // Créer l'utilisateur local avec les données réelles
+      final newUser = await _createUserFromApiData(userData);
       
       _setUser(newUser, provider: AuthProvider.email);
       
@@ -421,14 +391,8 @@ class AuthController extends ChangeNotifier {
       final userData = await _getAuthApiService().getCurrentUser();
       print('[AUTH] Données utilisateur reçues: ${userData['email']}');
       
-      // Créer l'utilisateur local
-      final newUser = createDefaultUser(
-        id: userData['id'] ?? 'student-${DateTime.now().millisecondsSinceEpoch}',
-        email: userData['email'] ?? email,
-        name: '$firstName $lastName',
-        avatarInitials: extractInitials('$firstName $lastName'),
-        hasPassword: true,
-      );
+      // Créer l'utilisateur local avec les données réelles
+      final newUser = await _createUserFromApiData(userData);
       
       _setUser(newUser, provider: AuthProvider.email);
       print('[AUTH] Utilisateur connecté avec succès !');
@@ -851,5 +815,73 @@ class AuthController extends ChangeNotifier {
           user.followedCompanies.where((id) => id != companyId).toList();
       return user.copyWith(followedCompanies: companies);
     });
+  }
+
+  /// Create user from real API data including applications
+  Future<AppUser> _createUserFromApiData(Map<String, dynamic> userData) async {
+    try {
+      // Get user applications from API
+      final applicationsResult = await _getEntitiesApiService().getUserApplications(userData['id'] ?? '');
+      final apiApplications = applicationsResult['applications'] as List? ?? [];
+      
+      // Map API applications to our model
+      final userApplications = apiApplications.map((app) {
+        final offerId = (app['offer'] as String?)?.split('/').last ?? 'unknown';
+        final companyName = app['offer']?['company']?['name'] ?? 'Unknown Company';
+        final jobTitle = app['offer']?['title'] ?? 'Unknown Job';
+        
+        return UserApplication(
+          id: app['id'] ?? 'app-${DateTime.now().millisecondsSinceEpoch}',
+          jobId: offerId,
+          company: companyName,
+          title: jobTitle,
+          status: _mapApiStatusToLocal(app['status']),
+          lastUpdate: app['updatedAt'] != null ? 'Updated ${_formatDate(app['updatedAt'])}' : 'No updates',
+          appliedOn: app['createdAt'] != null ? 'Applied on ${_formatDate(app['createdAt'])}' : 'Date unknown',
+          notes: [], // Notes would need to be stored locally
+        );
+      }).toList();
+
+      // Create user with applications
+      final newUser = cloneUser(mockUser).copyWith(
+        id: userData['id'] ?? 'restored-${DateTime.now().millisecondsSinceEpoch}',
+        email: userData['email'] ?? '',
+        name: '${userData['firstName'] ?? ''} ${userData['lastName'] ?? ''}',
+        avatarInitials: extractInitials('${userData['firstName'] ?? ''} ${userData['lastName'] ?? ''}'),
+        hasPassword: userData['isPasswordSet'] ?? false,
+        applications: userApplications,
+      );
+      return newUser;
+    } catch (e) {
+      print('[AUTH] Error loading user data from API: $e');
+      // Fallback to basic user creation
+      return createDefaultUser(
+        id: userData['id'] ?? 'restored-${DateTime.now().millisecondsSinceEpoch}',
+        email: userData['email'] ?? '',
+        name: '${userData['firstName'] ?? ''} ${userData['lastName'] ?? ''}',
+        avatarInitials: extractInitials('${userData['firstName'] ?? ''} ${userData['lastName'] ?? ''}'),
+        hasPassword: userData['isPasswordSet'] ?? false,
+      );
+    }
+  }
+
+  ApplicationStatus _mapApiStatusToLocal(String? apiStatus) {
+    switch (apiStatus?.toUpperCase()) {
+      case 'WAITING': return ApplicationStatus.sent;
+      case 'ACCEPTED': return ApplicationStatus.interview;
+      case 'REJECTED': return ApplicationStatus.rejected;
+      default: return ApplicationStatus.sent;
+    }
+  }
+
+  String _formatDate(dynamic dateData) {
+    try {
+      if (dateData is String) {
+        return dateData.split('T').first;
+      }
+      return 'Unknown';
+    } catch (e) {
+      return 'Unknown';
+    }
   }
 }

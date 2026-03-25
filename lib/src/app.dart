@@ -6,6 +6,9 @@ import 'features/login/login_screen.dart';
 import 'features/shell/main_shell.dart';
 import 'state/auth_controller.dart';
 import 'services/local_storage.dart';
+import 'services/api_service.dart';
+import 'services/entities_api_service.dart';
+import 'services/data_service.dart';
 import 'theme/app_theme.dart';
 import 'utils/app_snackbar.dart';
 
@@ -19,6 +22,13 @@ class MyApp extends StatelessWidget {
     return MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => AuthController(storage)),
+        Provider(create: (_) => ApiService()),
+        ProxyProvider<ApiService, EntitiesApiService>(
+          update: (_, apiService, __) => EntitiesApiService(apiService),
+        ),
+        ProxyProvider<EntitiesApiService, DataService>(
+          update: (_, entitiesService, __) => DataService(entitiesService),
+        ),
       ],
       child: MaterialApp(
         title: 'Trouve Ton Alternance',

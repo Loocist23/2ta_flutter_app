@@ -1,0 +1,31 @@
+flutter_native_splash:
+  # Customize the parameters below, and run the following command in the terminal:
+  # flutter pub run flutter_native_splash:create
+  
+  # Color to fill the background of the splash screen
+  color: "#FFFFFF"
+  
+  # The image parameter allows you to specify an image used in the splash screen.
+  image: assets/images/app_icon.png
+  
+  # The color_dark, image_dark are parameters that set the background
+  # and image when the device is in dark mode. If they are not specified,
+  # the app will use the parameters from above.
+  color_dark: "#121212"
+  image_dark: assets/images/app_icon.png
+  
+  # Android 12 handles the splash screen differently than previous versions.
+  android_12:
+    image: assets/images/app_icon.png
+    icon_background_color: "#FFFFFF"
+    image_dark: assets/images/app_icon.png
+    icon_background_color_dark: "#121212"
+  
+  # The web parameter is optional and is used to generate a splash screen for web.
+  web: false
+  
+  # Platform specific images can be specified with the following parameters,
+  # which will override the respective parameter. You may specify all,
+  # some, or none of these parameters:
+  android: true
+  ios: true

@@ -2,12 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../constants/app_colors.dart';
-import '../../data/companies.dart';
-import '../../data/job_offers.dart';
 import '../../models/company.dart';
 import '../../models/job_offer.dart';
 import '../../models/user.dart';
 import '../../state/auth_controller.dart';
+import '../../services/data_service.dart';
 import '../../utils/app_snackbar.dart';
 import '../../widgets/job_card.dart';
 import '../companies/companies_screen.dart';
@@ -16,8 +15,27 @@ import '../jobs/job_details_screen.dart';
 import '../search/search_screen.dart';
 import '../shell/main_shell.dart';
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  bool _initialized = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_initialized) {
+      _initialized = true;
+      // Load data when screen is first shown
+      final dataService = context.read<DataService>();
+      dataService.loadJobOffers();
+      dataService.loadCompanies();
+    }
+  }
 
   void _openSearch(BuildContext context, {String? alertId}) {
     Navigator.of(context).push(
@@ -48,12 +66,16 @@ class HomeScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthController>();
+    final dataService = context.watch<DataService>();
     final user = auth.user;
     if (user == null) {
       return const SizedBox.shrink();
     }
 
     final activeAlerts = user.alerts.where((alert) => alert.active).toList();
+    final jobOffers = dataService.jobOffers;
+    final loadingJobs = dataService.loadingJobs;
+    final jobsError = dataService.jobsError;
 
     return SafeArea(
       child: Scaffold(
@@ -185,21 +207,40 @@ class HomeScreen extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 16),
-                    ...jobOffers.map((job) => Padding(
-                          padding: const EdgeInsets.only(bottom: 16),
-                          child: JobCard(
-                            job: job,
-                            isFavorite: user.favorites.contains(job.id),
-                            onToggleFavorite: () =>
-                                context.read<AuthController>().toggleFavorite(job.id),
-                            onApply: () {
-                              AppSnackbar.show(
-                                'Votre candidature pour "${job.title}" a bien été envoyée.',
-                              );
-                            },
-                            onTap: () => _openJob(context, job),
-                          ),
-                        )),
+                    if (loadingJobs)
+                      const Center(child: Padding(
+                        padding: EdgeInsets.symmetric(vertical: 24),
+                        child: CircularProgressIndicator(color: AppColors.primary),
+                      ))
+                    else if (jobsError != null)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        child: Text(
+                          'Failed to load job offers: ${jobsError!}',
+                          style: TextStyle(color: AppColors.error),
+                        ),
+                      )
+                    else if (jobOffers.isEmpty)
+                      const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 24),
+                        child: Text('No job offers available at the moment.'),
+                      )
+                    else
+                      ...jobOffers.map((job) => Padding(
+                            padding: const EdgeInsets.only(bottom: 16),
+                            child: JobCard(
+                              job: job,
+                              isFavorite: user.favorites.contains(job.id),
+                              onToggleFavorite: () =>
+                                  context.read<AuthController>().toggleFavorite(job.id),
+                              onApply: () {
+                                AppSnackbar.show(
+                                  'Votre candidature pour "${job.title}" a bien été envoyée.',
+                                );
+                              },
+                              onTap: () => _openJob(context, job),
+                            ),
+                          )),
                     const SizedBox(height: 12),
                     const Text(
                       'Les tendances du moment',
@@ -210,33 +251,6 @@ class HomeScreen extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 12),
-                    Wrap(
-                      spacing: 12,
-                      runSpacing: 12,
-                      children: highlightedTopics
-                          .map((topic) => _TopicCard(topic: topic.title, description: topic.description))
-                          .toList(),
-                    ),
-                    const SizedBox(height: 24),
-                    _SectionHeader(
-                      title: 'Entreprises partenaires',
-                      actionLabel: 'Voir tout',
-                      onAction: () => _openCompanies(context),
-                    ),
-                    const SizedBox(height: 12),
-                    Wrap(
-                      spacing: 12,
-                      runSpacing: 12,
-                      children: partnerCompanies
-                          .map(
-                            (company) => _PartnerCard(
-                              company: company,
-                              onTap: () => _openCompany(context, company.id),
-                            ),
-                          )
-                          .toList(),
-                    ),
-                    const SizedBox(height: 48),
                   ],
                 ),
               ),

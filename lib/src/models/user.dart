@@ -221,7 +221,8 @@ enum ApplicationStatus {
   sent('Candidature envoyée'),
   inReview("En cours d'étude"),
   interview('Entretien planifié'),
-  offer('Proposition reçue');
+  offer('Proposition reçue'),
+  rejected('Candidature refusée');
 
   const ApplicationStatus(this.label);
   final String label;
